@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Avansi - Evidencija</title>
+<meta charset="UTF-8">
+<style>
+body { font-family: Arial; margin: 20px; }
+input, select, button { padding: 8px; margin: 5px; }
+table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+</style>
+</head>
+<body>
+
+<h2>Prijava</h2>
+<input id="username" placeholder="Korisničko ime">
+<input id="password" type="password" placeholder="Lozinka">
+<button onclick="login()">Prijavi se</button>
+
+<div id="app" style="display:none;">
+  <h3 id="welcome"></h3>
+  <div id="formDiv">
+    <input id="iznos" type="number" placeholder="Iznos avansa" step="0.01">
+    <input id="napomena" placeholder="Napomena">
+    <button onclick="dodajAvans()">Dodaj avans</button>
+  </div>
+  <div id="pregledDiv">
+    <h3>Pregled avansa</h3>
+    <table id="tabela">
+      <tr><th>Datum</th><th>Radnica</th><th>Iznos</th><th>Napomena</th></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+// Podesi korisnike i lozinke
+const users = {
+  "radnica1": { pass: "1234", role: "user" },
+  "radnica2": { pass: "5678", role: "user" },
+  "Azra": { pass: "1234", role: "user" },
+  "Adela": { pass: "4321", role: "user" },
+  "admin": { pass: "adminpass", role: "admin" }
+};
+
+// Tvoj Google Apps Script Web App URL
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrJO3hW4N6-7-AoLWOFIu13EHaXS44BbzfjbqMac5dHeFKJ0Dhst4flyZSJvIDxS7E/exec";
+
+let currentUser = null;
+
+function login(){
+  let u = document.getElementById("username").value.trim();
+  let p = document.getElementById("password").value;
+  if(users[u] && users[u].pass === p){
+    currentUser = {name: u, role: users[u].role};
+    document.getElementById("welcome").innerText = "Dobrodošla, " + u;
+    document.querySelector("h2").style.display = "none";
+    document.getElementById("username").style.display = "none";
+    document.getElementById("password").style.display = "none";
+    document.querySelector("button").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    ucitajPodatke();
+  } else {
+    alert("Pogrešno korisničko ime ili lozinka!");
+  }
+}
+
+function dodajAvans(){
+  let iznos = document.getElementById("iznos").value;
+  let napomena = document.getElementById("napomena").value;
+  if(!iznos) return alert("Unesi iznos!");
+  
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    body: new URLSearchParams({
+      "datum": new Date().toLocaleString(),
+      "radnica": currentUser.name,
+      "iznos": iznos,
+      "napomena": napomena
+    })
+  }).then(r => r.text()).then(() => {
+    document.getElementById("iznos").value = "";
+    document.getElementById("napomena").value = "";
+    ucitajPodatke();
+  }).catch(err => alert("Greška pri slanju: " + err));
+}
+
+function ucitajPodatke(){
+  fetch(SCRIPT_URL)
+    .then(res => res.json())
+    .then(data => {
+      let table = document.getElementById("tabela");
+      table.innerHTML = "<tr><th>Datum</th><th>Radnica</th><th>Iznos</th><th>Napomena</th></tr>";
+      for(let i = 0; i < data.length; i++){
+        let datum = data[i][0] || "";
+        let radnica = data[i][1] || "";
+        let iznos = data[i][2] || "";
+        let napomena = data[i][3] || "";
+        if(currentUser.role === "admin" || radnica === currentUser.name){
+          table.innerHTML += `<tr><td>${datum}</td><td>${radnica}</td><td>${iznos}</td><td>${napomena}</td></tr>`;
+        }
+      }
+    })
+    .catch(err => alert("Greška pri učitavanju: " + err));
+}
+</script>
+
+</body>
+</html>
